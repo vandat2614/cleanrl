@@ -225,10 +225,14 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
         if global_step > args.learning_starts:
             if global_step % args.train_frequency == 0:
                 data = rb.sample(args.batch_size)
+
+                # next_q_values = q_network(data.next_observations)
+                # next_actions = torch.argmax(next_q_values, dim=1)
+
                 with torch.no_grad():
-                    max_indicies = q_network(data.next_observations).max(dim=1)[1]
-                    values = target_network(data.next_observations)[:,max_indicies][:,0]
-                    td_target = data.rewards.flatten() + args.gamma * values * (1 - data.dones.flatten())
+                    next_actions = q_network(data.next_observations).argmax(dim=1)
+                    target_max = target_network(data.next_observations).gather(1, next_actions.unsqueeze(1)).squeeze()
+                    td_target = data.rewards.flatten() + args.gamma * target_max * (1 - data.dones.flatten())
                 old_val = q_network(data.observations).gather(1, data.actions).squeeze()
                 loss = F.mse_loss(td_target, old_val)
 
